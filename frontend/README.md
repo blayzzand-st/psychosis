@@ -27,7 +27,7 @@ npm.cmd — Windows-команда npm, которая не требует за�
 
 ## Что происходит при нажатии кнопки
 
-1. Обработчик в App.tsx меняет состояние на checking, и React обновляет страницу.
+1. Обработчик в pages/Test/Test.tsx меняет состояние на checking, и React обновляет страницу.
 2. fetch отправляет GET /api/health на адрес фронтенда.
 3. Dev-сервер Vite перенаправляет запрос на бэкенд через proxy в vite.config.ts.
 4. Бэкенд возвращает JSON {"status":"ok"}.
@@ -42,8 +42,9 @@ Proxy используется только при разработке. Для 
 
 - index.html — HTML-страница с контейнером root.
 - src/main.tsx — подключает React к контейнеру и отображает App.
-- src/App.tsx — содержимое страницы, состояние и запрос к API.
-- src/App.styles.ts — styled-компоненты страницы на MUI.
+- src/App.tsx — корневой компонент, отображающий страницу Test.
+- src/pages/Test/Test.tsx — тестовая страница, состояние и запрос к API.
+- src/pages/Test/Test.styles.ts — styled-компоненты страницы на MUI.
 - src/theme.ts — общая палитра, шрифт и глобальные настройки MUI.
 - vite.config.ts — настройки сервера разработки и proxy.
 - package.json — зависимости и команды проекта.
