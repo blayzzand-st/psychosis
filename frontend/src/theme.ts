@@ -29,6 +29,7 @@ export const theme = createTheme({
   components: {
     MuiCssBaseline: {
       styleOverrides: {
+        html: { scrollbarGutter: 'stable' },
         body: {
           minWidth: '320px',
           fontSynthesis: 'none',
