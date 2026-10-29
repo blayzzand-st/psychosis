@@ -1,0 +1,55 @@
+name: psychosis
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: psychosis
+      POSTGRES_USER: psychosis
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-psychosis_local_dev}
+    volumes:
+      - postgres_data_v18:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U psychosis -d psychosis"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: psychosis
+      PGUSER: psychosis
+      PGPASSWORD: ${POSTGRES_PASSWORD:-psychosis_local_dev}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${APP_HOST:-127.0.0.1}:${APP_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ && wget -q -O /dev/null http://127.0.0.1/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  postgres_data_v18:

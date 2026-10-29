@@ -1,0 +1,3 @@
+.local/
+backend/backups/
+.env

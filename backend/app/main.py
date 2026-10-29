@@ -5,6 +5,8 @@ from fastapi import FastAPI
 from sqlalchemy import Engine
 
 from app.database import Base, engine
+from app.accounts.models import UserAccount  # Register the account table in metadata.
+from app.audit.models import AuditEvent  # Register the audit table in metadata.
 from app.diagnoses.router import router as diagnoses_router
 from app.medical_workers.router import router as medical_workers_router
 from app.medical_records.router import router as medical_records_router

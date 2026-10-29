@@ -83,7 +83,7 @@ def read_medical_record(patient_id: PatientId, session: DatabaseSession,
         revision = session.scalar(
             select(MedicalRecordRevision).where(
                 MedicalRecordRevision.medical_record_id == record.id,
-                MedicalRecordRevision.recorded_at <= at.astimezone(timezone.utc).replace(tzinfo=None),
+                MedicalRecordRevision.recorded_at <= at.astimezone(timezone.utc),
             ).order_by(MedicalRecordRevision.version.desc()).limit(1)
         )
         if revision is None:
