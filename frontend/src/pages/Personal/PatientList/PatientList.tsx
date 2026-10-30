@@ -27,7 +27,7 @@ const PatientList = () => {
   }, [requestVersion])
 
   return (
-    <div aria-busy={state.status === 'loading'}>
+    <Styled.Container aria-busy={state.status === 'loading'}>
       <Styled.Toolbar>
         <Styled.Count role="status">Всего: {state.status === 'loaded' ? state.patients.length : '—'}</Styled.Count>
         {status?.user?.can_create && <Styled.CreateLink to="/personal/patients/new">Добавить пациента</Styled.CreateLink>}
@@ -63,7 +63,7 @@ const PatientList = () => {
           </Styled.List>
         )
       )}
-    </div>
+    </Styled.Container>
   )
 }
 

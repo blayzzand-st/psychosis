@@ -12,7 +12,7 @@ export const Page = styled('main')(({ theme }) =>
     paddingLeft: { xs: '20px', sm: '32px' },
     paddingRight: { xs: '20px', sm: '32px' },
     paddingBottom: '64px',
-    '&[data-admin-workspace="true"]': {
+    '&[data-workspace="true"]': {
       height: { sm: '100dvh' },
     },
   }),

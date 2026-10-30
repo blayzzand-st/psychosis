@@ -8,10 +8,10 @@ type PageLayoutProps = {
 
 const PageLayout = ({ children }: PageLayoutProps) => {
   const { pathname } = useLocation()
-  const adminWorkspace = ['/administrator', '/administrator/', '/administrator/accounts', '/administrator/audit'].includes(pathname)
+  const workspace = ['/administrator', '/administrator/', '/administrator/accounts', '/administrator/audit', '/personal', '/personal/'].includes(pathname)
 
   return (
-    <Styled.Page data-admin-workspace={adminWorkspace ? 'true' : undefined}>
+    <Styled.Page data-workspace={workspace ? 'true' : undefined}>
       <Styled.Header>
         <Styled.BrandBlock>
           <Styled.BrandRow to="/" aria-label="PsychosIS — на стартовую страницу">

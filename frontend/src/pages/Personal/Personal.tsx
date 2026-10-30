@@ -1,5 +1,4 @@
 import BackButton from '../../shared/ui/BackButton/BackButton'
-import DetailsCard from '../../shared/ui/DetailsCard/DetailsCard'
 import PatientList from './PatientList/PatientList'
 import * as Styled from './Personal.styles'
 import UserCard from '../../shared/ui/UserAccess/UserCard'
@@ -16,10 +15,9 @@ const Personal = () => (
         </Styled.Sidebar>
         <UserCard />
       </Styled.SideColumn>
-      <Styled.Workspace>
-        <DetailsCard title="Список пациентов">
-          <PatientList />
-        </DetailsCard>
+      <Styled.Workspace elevation={0} aria-labelledby="personal-section-title">
+        <Styled.Title id="personal-section-title">Список пациентов</Styled.Title>
+        <PatientList />
       </Styled.Workspace>
     </Styled.Layout>
   </Styled.Page>

@@ -2,6 +2,14 @@ import Button from '@mui/material/Button'
 import { alpha, styled } from '@mui/material/styles'
 import { Link } from 'react-router'
 
+export const Container = styled('div')(({ theme }) =>
+  theme.unstable_sx({
+    marginTop: '24px',
+    display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: '0px',
+    '& > :not(ul)': { flexShrink: 0 },
+  }),
+)
+
 export const Toolbar = styled('div')(({ theme }) =>
   theme.unstable_sx({
     display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px',
@@ -27,7 +35,10 @@ export const ErrorMessage = styled('p')(({ theme }) =>
 export const RetryButton = styled(Button)(({ theme }) =>
   theme.unstable_sx({ minHeight: '44px', padding: '8px 16px', textTransform: 'none' }),
 )
-export const List = styled('ul')(({ theme }) => theme.unstable_sx({ margin: '0px', padding: '0px', listStyle: 'none' }))
+export const List = styled('ul')(({ theme }) => theme.unstable_sx({
+  margin: '0px', padding: '0px', listStyle: 'none', minHeight: '0px', overflowY: 'auto',
+  flex: '1 1 auto', minWidth: '0px', maxHeight: { xs: '60dvh', sm: 'none' }, scrollbarGutter: 'stable',
+}))
 export const Row = styled('li')(({ theme }) =>
   theme.unstable_sx({
     marginLeft: '-12px', marginRight: '-12px', borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' },
