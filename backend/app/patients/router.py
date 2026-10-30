@@ -6,8 +6,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_session
+from app.events import EventKind, emit_event
 from app.patients.models import Patient
 from app.patients.schemas import PatientRead, PatientWrite
+from app.user_auth.service import require_creator
 
 
 router = APIRouter(prefix="/api/patients", tags=["Пациенты"])
@@ -29,10 +31,12 @@ def list_patients(session: DatabaseSession) -> list[Patient]:
     return list(session.scalars(query))
 
 
-@router.post("", response_model=PatientRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=PatientRead, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_creator)])
 def create_patient(payload: PatientWrite, session: DatabaseSession) -> Patient:
     patient = Patient(**payload.model_dump())
     session.add(patient)
+    session.flush()
+    emit_event(session, EventKind.PATIENT_CREATED, patient.id)
     session.commit()
     session.refresh(patient)
     return patient
@@ -48,6 +52,7 @@ def update_patient(patient_id: PatientId, payload: PatientWrite, session: Databa
     patient = get_patient(session, patient_id)
     for field, value in payload.model_dump().items():
         setattr(patient, field, value)
+    emit_event(session, EventKind.PATIENT_UPDATED, patient.id)
     session.commit()
     session.refresh(patient)
     return patient
@@ -59,6 +64,7 @@ def delete_patient(patient_id: PatientId, session: DatabaseSession) -> Response:
     if patient.has_medical_record:
         raise HTTPException(status_code=409, detail=DELETE_BLOCKED)
     session.delete(patient)
+    emit_event(session, EventKind.PATIENT_DELETED, patient_id)
     try:
         session.commit()
     except IntegrityError as error:

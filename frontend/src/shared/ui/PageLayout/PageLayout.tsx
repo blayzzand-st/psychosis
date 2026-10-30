@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useMatch } from 'react-router'
+import { useLocation } from 'react-router'
 import * as Styled from './PageLayout.styles'
 
 type PageLayoutProps = {
@@ -7,13 +7,11 @@ type PageLayoutProps = {
 }
 
 const PageLayout = ({ children }: PageLayoutProps) => {
-  const administratorPage = useMatch('/administrator/*')
-  const personalPage = useMatch('/personal/*')
-  const role = administratorPage ? { letter: 'A', label: 'Администратор' }
-    : personalPage ? { letter: 'В', label: 'Врач' } : null
+  const { pathname } = useLocation()
+  const adminWorkspace = ['/administrator', '/administrator/', '/administrator/accounts', '/administrator/audit'].includes(pathname)
 
   return (
-    <Styled.Page>
+    <Styled.Page data-admin-workspace={adminWorkspace ? 'true' : undefined}>
       <Styled.Header>
         <Styled.BrandBlock>
           <Styled.BrandRow to="/" aria-label="PsychosIS — на стартовую страницу">
@@ -22,12 +20,6 @@ const PageLayout = ({ children }: PageLayoutProps) => {
           </Styled.BrandRow>
           <Styled.HeaderSubtitle>Медицинская информационная система</Styled.HeaderSubtitle>
         </Styled.BrandBlock>
-        {role && (
-          <Styled.Role aria-label={`Текущая роль: ${role.label}`}>
-            <Styled.RoleMark aria-hidden="true"><Styled.RoleLetter>{role.letter}</Styled.RoleLetter></Styled.RoleMark>
-            <Styled.RoleLabel>{role.label}</Styled.RoleLabel>
-          </Styled.Role>
-        )}
       </Styled.Header>
       {children}
     </Styled.Page>

@@ -6,6 +6,7 @@ import {
   type WorkerFieldErrors,
 } from '../../../api/medicalWorkers'
 import { medicalWorkerPositions, type MedicalWorkerPosition } from '../../../types/medicalWorkerPosition'
+import { medicalWorkerRoles } from '../../../types/medicalWorkerRole'
 import * as Styled from './MedicalWorkerForm.styles'
 
 type MedicalWorkerFormProps = {
@@ -28,7 +29,7 @@ type MedicalWorkerFormValues = Omit<MedicalWorkerWrite, 'position'> & {
 
 const MedicalWorkerForm = ({ initialValues, busy, submitLabel, onSubmit, onCancel, onEdit }: MedicalWorkerFormProps) => {
   const [values, setValues] = useState<MedicalWorkerFormValues>(initialValues ?? {
-    first_name: '', last_name: '', position: '',
+    first_name: '', last_name: '', position: '', role: 'other',
   })
   const [errors, setErrors] = useState<WorkerFieldErrors>({})
   const [serverError, setServerError] = useState('')
@@ -51,7 +52,7 @@ const MedicalWorkerForm = ({ initialValues, busy, submitLabel, onSubmit, onCance
     const fieldErrors: WorkerFieldErrors = {}
     for (const { name } of fields) {
       const length = [...trimmed[name]].length
-      if (length < 3 || length > 24) fieldErrors[name] = 'Введите от 3 до 24 символов.'
+      if (length < 1 || length > 24) fieldErrors[name] = 'Введите от 1 до 24 символов.'
     }
     const position = values.position
     if (!position) fieldErrors.position = 'Выберите должность.'
@@ -59,7 +60,7 @@ const MedicalWorkerForm = ({ initialValues, busy, submitLabel, onSubmit, onCance
     setServerError('')
     if (Object.keys(fieldErrors).length > 0 || !position) return
 
-    const payload: MedicalWorkerWrite = { ...trimmed, position }
+    const payload: MedicalWorkerWrite = { ...trimmed, position, role: values.role }
 
     try {
       await onSubmit(payload)
@@ -88,7 +89,7 @@ const MedicalWorkerForm = ({ initialValues, busy, submitLabel, onSubmit, onCance
           disabled={busy}
           value={values[name]}
           error={Boolean(errors[name])}
-          helperText={errors[name] || 'От 3 до 24 символов'}
+          helperText={errors[name] || 'От 1 до 24 символов'}
           onChange={(event) => handleChange(name, event.target.value)}
         />
       ))}
@@ -111,6 +112,23 @@ const MedicalWorkerForm = ({ initialValues, busy, submitLabel, onSubmit, onCance
         {medicalWorkerPositions.map((position) => (
           <MenuItem key={position} value={position}>{position}</MenuItem>
         ))}
+      </Styled.Field>
+      <Styled.Field
+        select
+        id="worker-role"
+        name="role"
+        label="Роль"
+        fullWidth
+        disabled={busy}
+        value={values.role}
+        error={Boolean(errors.role)}
+        helperText={errors.role || 'По умолчанию — other'}
+        onChange={(event) => {
+          const role = medicalWorkerRoles.find((option) => option.value === event.target.value)
+          if (role) handleChange('role', role.value)
+        }}
+      >
+        {medicalWorkerRoles.map((role) => <MenuItem key={role.value} value={role.value}>{role.label}</MenuItem>)}
       </Styled.Field>
       <Styled.Actions>
         <Styled.ActionButton type="submit" variant="contained" disabled={busy}>

@@ -1,11 +1,10 @@
+import UserCard from '../../shared/ui/UserAccess/UserCard'
 import { useEffect, useState } from 'react'
-import MenuItem from '@mui/material/MenuItem'
 import { useParams } from 'react-router'
 import { getPatient, PatientApiError, type Patient } from '../../api/patients'
-import { getMedicalWorkers, type MedicalWorker } from '../../api/medicalWorkers'
 import { getDiagnoses, type Diagnosis } from '../../api/diagnoses'
 import {
-  createMedicalRecord, getMedicalRecord, saveMedicalRecord, MedicalRecordApiError,
+  createMedicalRecord, getMedicalRecord, saveMedicalRecord, unlockMedicalRecord, MedicalRecordApiError,
   type MedicalRecord as MedicalRecordData, type MedicalRecordContent,
 } from '../../api/medicalRecords'
 import BackButton from '../../shared/ui/BackButton/BackButton'
@@ -15,20 +14,23 @@ import type { MedicalRecordTab } from '../../types/medicalRecord'
 import MedicalRecordForm from './MedicalRecordForm/MedicalRecordForm'
 import MedicalRecordHistory from './MedicalRecordHistory/MedicalRecordHistory'
 import * as Styled from './MedicalRecord.styles'
+import { useUserAuth } from '../../shared/ui/UserAccess/useUserAuth'
 
 type PageState =
   | { status: 'loading' }
   | { status: 'error'; notFound: boolean }
-  | { status: 'loaded'; patient: Patient; record: MedicalRecordData | null; workers: MedicalWorker[]; diagnoses: Diagnosis[] }
+  | { status: 'loaded'; patient: Patient; record: MedicalRecordData | null; diagnoses: Diagnosis[] }
 
 const MedicalRecord = () => {
   const { patientId } = useParams()
+  const { status } = useUserAuth()
+  const user = status?.user
   const [state, setState] = useState<PageState>({ status: 'loading' })
   const [requestVersion, setRequestVersion] = useState(0)
-  const [workerId, setWorkerId] = useState<number | ''>('')
+  const [editToken, setEditToken] = useState('')
   const [editing, setEditing] = useState(false)
   const [formReset, setFormReset] = useState(0)
-  const [action, setAction] = useState<'creating' | 'saving' | null>(null)
+  const [action, setAction] = useState<'creating' | 'saving' | 'unlocking' | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [conflict, setConflict] = useState(false)
@@ -39,7 +41,7 @@ const MedicalRecord = () => {
     const load = async () => {
       setState({ status: 'loading' })
       setEditing(false)
-      setWorkerId('')
+      setEditToken('')
       setError('')
       setSuccess('')
       setConflict(false)
@@ -50,16 +52,15 @@ const MedicalRecord = () => {
         return
       }
       try {
-        const [patient, record, workers, diagnoses] = await Promise.all([
+        const [patient, record, diagnoses] = await Promise.all([
           getPatient(id, controller.signal),
           getMedicalRecord(id, controller.signal).catch((failure) => {
             if (failure instanceof MedicalRecordApiError && failure.status === 404) return null
             throw failure
           }),
-          getMedicalWorkers(controller.signal),
           getDiagnoses(controller.signal),
         ])
-        if (!controller.signal.aborted) setState({ status: 'loaded', patient, record, workers, diagnoses })
+        if (!controller.signal.aborted) setState({ status: 'loaded', patient, record, diagnoses })
       } catch (failure) {
         if (!controller.signal.aborted) setState({ status: 'error', notFound: failure instanceof PatientApiError && failure.status === 404 })
       }
@@ -69,15 +70,15 @@ const MedicalRecord = () => {
   }, [patientId, requestVersion])
 
   const handleCreate = async () => {
-    if (state.status !== 'loaded' || state.record || !workerId || action) return
+    if (state.status !== 'loaded' || state.record || !user?.can_create || action) return
     setAction('creating')
     setError('')
     try {
-      const record = await createMedicalRecord(state.patient.id, workerId)
+      const record = await createMedicalRecord(state.patient.id)
       setState((previous) => previous.status === 'loaded' && previous.patient.id === record.patient_id
         ? { ...previous, record, patient: { ...previous.patient, has_medical_record: true } } : previous)
       setEditing(false)
-      setWorkerId('')
+      setEditToken('')
       setSuccess('ЭМК создана. Редактирование заблокировано.')
     } catch (failure) {
       setError(failure instanceof MedicalRecordApiError ? failure.message : 'Не удалось создать ЭМК. Повторите попытку.')
@@ -87,17 +88,33 @@ const MedicalRecord = () => {
     }
   }
 
+  const handleUnlock = async () => {
+    if (state.status !== 'loaded' || !state.record || !user?.can_edit_record || action) return
+    setAction('unlocking')
+    setError('')
+    setSuccess('')
+    try {
+      const grant = await unlockMedicalRecord(state.patient.id)
+      if (grant.version !== state.record.version) {
+        setConflict(true)
+        setError('Карта изменена. Обновите её перед редактированием.')
+      } else { setEditToken(grant.edit_token); setEditing(true) }
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Не удалось разблокировать ЭМК')
+    } finally { setAction(null) }
+  }
+
   const handleSave = async (values: MedicalRecordContent) => {
-    if (state.status !== 'loaded' || !state.record || !editing || !workerId) {
-      throw new MedicalRecordApiError(422, 'Выберите медработника и разблокируйте карту.')
+    if (state.status !== 'loaded' || !state.record || !editing || !editToken) {
+      throw new MedicalRecordApiError(422, 'Разблокируйте карту своим аккаунтом.')
     }
     setAction('saving')
     setSuccess('')
     try {
-      const record = await saveMedicalRecord(state.patient.id, { ...values, worker_id: workerId, version: state.record.version })
+      const record = await saveMedicalRecord(state.patient.id, { ...values, edit_token: editToken, version: state.record.version })
       setState((previous) => previous.status === 'loaded' && previous.patient.id === record.patient_id ? { ...previous, record } : previous)
       setEditing(false)
-      setWorkerId('')
+      setEditToken('')
       setConflict(false)
       setSuccess('ЭМК сохранена. Редактирование заблокировано.')
     } catch (failure) {
@@ -110,7 +127,7 @@ const MedicalRecord = () => {
 
   const cancelEditing = () => {
     setEditing(false)
-    setWorkerId('')
+    setEditToken('')
     setFormReset((previous) => previous + 1)
     setConflict(false)
     setError('')
@@ -133,7 +150,7 @@ const MedicalRecord = () => {
 
   return (
     <Styled.Page>
-      <Styled.BackNav><BackButton fallbackTo={backPath} /></Styled.BackNav>
+      <Styled.BackNav><BackButton fallbackTo={backPath} /><UserCard compact /></Styled.BackNav>
       <DetailsCard title={title} subtitle={subtitle} busy={state.status === 'loading' || action !== null}>
         {state.status === 'loading' && <Styled.Message role="status">Загрузка ЭМК…</Styled.Message>}
         {state.status === 'error' && (
@@ -150,23 +167,13 @@ const MedicalRecord = () => {
               <Styled.Status role="status">
                 {!state.record ? 'ЭМК ещё не создана.' : editing ? 'Редактирование разрешено' : 'Редактирование заблокировано'}
               </Styled.Status>
-              <Styled.Field
-                select label="Медработник" required fullWidth disabled={action !== null || editing || state.workers.length === 0}
-                value={workerId}
-                helperText={state.workers.length === 0 ? 'Нет активных медработников. Добавьте или восстановите сотрудника в режиме администратора.'
-                  : !state.record ? 'Укажите, кто создаёт ЭМК.' : editing ? 'Будет указан автором изменений.' : 'Укажите, кто разблокирует ЭМК.'}
-                onChange={(event) => { setWorkerId(Number(event.target.value)); setError(''); setSuccess('') }}
-              >
-                <MenuItem value="" disabled>Выберите медработника</MenuItem>
-                {state.workers.map((worker) => <MenuItem key={worker.id} value={worker.id}>{worker.first_name} {worker.last_name}</MenuItem>)}
-              </Styled.Field>
-              {!editing && (
-                <Styled.ActionButton variant="contained" disabled={!workerId || action !== null}
+              {!editing && (state.record ? user?.can_edit_record : user?.can_create) && (
+                <Styled.ActionButton variant="contained" disabled={action !== null}
                   onClick={() => {
-                    if (state.record) { setEditing(true); setSuccess('') }
+                    if (state.record) void handleUnlock()
                     else void handleCreate()
                   }}>
-                  {action === 'creating' ? 'Создание…' : state.record ? 'Разблокировать' : 'Создать ЭМК'}
+                  {action === 'creating' ? 'Создание…' : action === 'unlocking' ? 'Проверка доступа…' : state.record ? 'Разблокировать' : 'Создать ЭМК'}
                 </Styled.ActionButton>
               )}
             </Styled.EditorControls>

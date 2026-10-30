@@ -1,3 +1,4 @@
+import UserCard from '../../shared/ui/UserAccess/UserCard'
 import { useEffect, useState } from 'react'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
@@ -14,6 +15,7 @@ import DetailsCard from '../../shared/ui/DetailsCard/DetailsCard'
 import { medicalRecordPath } from '../../shared/config/routes'
 import PatientForm from './PatientForm/PatientForm'
 import * as Styled from './Patient.styles'
+import { useUserAuth } from '../../shared/ui/UserAccess/useUserAuth'
 
 type PageState =
   | { status: 'new' }
@@ -24,7 +26,9 @@ type PageState =
 const listPath = '/personal'
 
 const Patient = () => {
+  const { status } = useUserAuth()
   const { patientId } = useParams()
+  const canManage = Boolean(patientId || status?.user?.can_create)
   const navigate = useNavigate()
   const [state, setState] = useState<PageState>({ status: patientId ? 'loading' : 'new' })
   const [requestVersion, setRequestVersion] = useState(0)
@@ -94,8 +98,8 @@ const Patient = () => {
 
   return (
     <Styled.Page>
-      <Styled.BackNav><BackButton fallbackTo={listPath} /></Styled.BackNav>
-      <DetailsCard title={title} busy={state.status === 'loading' || action !== null} action={patient && (
+      <Styled.BackNav><BackButton fallbackTo={listPath} /><UserCard compact /></Styled.BackNav>
+      <DetailsCard title={title} busy={state.status === 'loading' || action !== null} action={patient && canManage && (
         <Styled.ActionButton color="error" disabled={action !== null || patient.has_medical_record}
           onClick={() => { setDeleteError(''); setDeleteOpen(true) }}>Удалить</Styled.ActionButton>
       )}>
@@ -111,14 +115,16 @@ const Patient = () => {
           <>
             {patient && (
               <Styled.RecordNav aria-label="Медицинская карта пациента">
-                <Styled.RecordLink to={medicalRecordPath(patient.id)}>{patient.has_medical_record ? 'Открыть ЭМК' : 'Создать ЭМК'}</Styled.RecordLink>
+                {patient.has_medical_record || status?.user?.can_create
+                  ? <Styled.RecordLink to={medicalRecordPath(patient.id)}>{patient.has_medical_record ? 'Открыть ЭМК' : 'Создать ЭМК'}</Styled.RecordLink>
+                  : <Styled.ActionButton variant="outlined" disabled>Создать ЭМК</Styled.ActionButton>}
               </Styled.RecordNav>
             )}
             {patient?.has_medical_record && <Styled.Feedback severity="info">У пациента есть ЭМК. Удаление недоступно.</Styled.Feedback>}
             {saved && <Styled.Feedback severity="success" role="status">Изменения сохранены</Styled.Feedback>}
-            <PatientForm key={patient?.id ?? 'new'} initialValues={patient ?? undefined} busy={action !== null}
+            {!patient && !canManage ? <Styled.Feedback severity="info">Создание пациентов доступно только врачу или медсестре.</Styled.Feedback> : <PatientForm key={patient?.id ?? 'new'} initialValues={patient ?? undefined} busy={action !== null}
               submitLabel={patient ? 'Сохранить изменения' : 'Создать'} onSubmit={handleSave}
-              onCancel={() => navigate(listPath)} onEdit={() => setSaved(false)} />
+              onCancel={() => navigate(listPath)} onEdit={() => setSaved(false)} />}
           </>
         )}
       </DetailsCard>

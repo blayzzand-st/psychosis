@@ -28,6 +28,10 @@ export const Heading = styled('div')(({ theme }) =>
   theme.unstable_sx({ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '0px', flex: '1 1 180px' }),
 )
 
+export const TitleLine = styled('div')(({ theme }) => theme.unstable_sx({
+  display: 'flex', alignItems: 'center', gap: '10px', minWidth: '0px',
+}))
+
 export const Subtitle = styled('div')(({ theme }) =>
   theme.unstable_sx({ color: 'text.secondary', fontSize: '15px', lineHeight: 1.6, overflowWrap: 'anywhere' }),
 )

@@ -11,10 +11,10 @@ PrescriptionText = Annotated[str, StringConstraints(strip_whitespace=True, min_l
 
 class MedicalRecordCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    worker_id: EntityId
 
 
 class MedicalRecordWrite(MedicalRecordCreate):
+    edit_token: str = Field(min_length=1, max_length=4096, repr=False)
     version: Annotated[int, Field(ge=0, strict=True)]
     diagnosis_ids: list[EntityId]
     prescriptions: list[PrescriptionText]

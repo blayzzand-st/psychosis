@@ -1,3 +1,4 @@
+import { authenticatedFetch } from './authenticatedFetch'
 export type Diagnosis = { id: number; code: string; name: string }
 export type DiagnosisWrite = Pick<Diagnosis, 'code' | 'name'>
 export type DiagnosisFieldErrors = Partial<Record<keyof DiagnosisWrite, string>>
@@ -16,7 +17,7 @@ export class DiagnosisApiError extends Error {
 
 const request = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const timeout = AbortSignal.timeout(10000)
-  const response = await fetch(`/api/diagnoses${path}`, {
+  const response = await authenticatedFetch(`/api/diagnoses${path}`, {
     ...options,
     headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
     signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout,

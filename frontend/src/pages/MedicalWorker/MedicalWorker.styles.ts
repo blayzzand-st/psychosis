@@ -1,6 +1,15 @@
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import { styled } from '@mui/material/styles'
+import { Link } from 'react-router'
+
+export const AccountLink = styled(Link)(({ theme }) => theme.unstable_sx({
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  width: '40px', height: '40px', borderRadius: '8px', border: '1px solid', borderColor: 'divider', color: 'primary.main', textDecoration: 'none',
+  '&:hover': { backgroundColor: 'action.hover', borderColor: 'primary.main' },
+  '&:active': { backgroundColor: 'action.selected' },
+  '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: '2px' },
+}))
 
 export const Page = styled('section')(({ theme }) =>
   theme.unstable_sx({ paddingTop: '32px' }),

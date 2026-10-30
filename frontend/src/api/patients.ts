@@ -1,3 +1,4 @@
+import { employeeFetch } from './userAuth'
 import type { AdministrativeSex } from '../types/patient'
 
 export type Patient = {
@@ -37,7 +38,7 @@ export class PatientApiError extends Error {
 
 const request = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const timeout = AbortSignal.timeout(10000)
-  const response = await fetch(`/api/patients${path}`, {
+  const response = await employeeFetch(`/api/patients${path}`, {
     ...options,
     headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
     signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout,

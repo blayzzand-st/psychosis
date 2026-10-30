@@ -1,4 +1,7 @@
 from uuid import UUID
+import hashlib
+
+from argon2 import Type, extract_parameters
 
 import pytest
 from sqlalchemy.exc import DataError, IntegrityError
@@ -12,12 +15,33 @@ from app.medical_workers.models import MedicalWorker
 
 def test_password_hash_is_salted_and_verifiable():
     first = hash_password("Abc123Secret")
+    assert first.startswith("$argon2id$v=19$m=65536,t=3,p=4$")
+    parameters = extract_parameters(first)
+    assert parameters.type == Type.ID
+    assert parameters.salt_len == 16 and parameters.hash_len == 32
     assert first != hash_password("Abc123Secret")
     assert "Abc123Secret" not in first
     assert verify_password("Abc123Secret", first)
     assert not verify_password("wrong", first)
     assert not verify_password("Abc123Secret", "broken")
-    assert not verify_password("Abc123Secret", first.replace("16384", "999999999"))
+    assert not verify_password("Abc123Secret", first.replace("m=65536", "m=999999999"))
+    assert not verify_password("Abc123Secret", "$argon2id$broken")
+
+
+def test_legacy_scrypt_still_verifies_but_new_hashes_use_argon2id():
+    password = "LegacySecret123"
+    salt = bytes(range(16))
+    digest = hashlib.scrypt(password.encode(), salt=salt, n=16384, r=8, p=1, dklen=32)
+    legacy = f"scrypt$16384$8$1${salt.hex()}${digest.hex()}"
+    assert verify_password(password, legacy)
+    assert not verify_password("wrong", legacy)
+    assert not verify_password(password, legacy.replace("16384", "999999999"))
+    assert hash_password(password).startswith("$argon2id$")
+
+
+def test_empty_password_rejected():
+    with pytest.raises(ValueError):
+        hash_password("")
 
 
 def test_account_defaults_update_and_safe_response(database_engine):

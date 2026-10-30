@@ -1,4 +1,6 @@
+import { authenticatedFetch } from './authenticatedFetch'
 import type { MedicalWorkerPosition } from '../types/medicalWorkerPosition'
+import type { MedicalWorkerRole } from '../types/medicalWorkerRole'
 
 export type MedicalWorker = {
   id: number
@@ -6,9 +8,10 @@ export type MedicalWorker = {
   last_name: string
   position: MedicalWorkerPosition
   is_deleted: boolean
+  role: MedicalWorkerRole
 }
 
-export type MedicalWorkerWrite = Pick<MedicalWorker, 'first_name' | 'last_name' | 'position'>
+export type MedicalWorkerWrite = Pick<MedicalWorker, 'first_name' | 'last_name' | 'position' | 'role'>
 export type WorkerFieldErrors = Partial<Record<keyof MedicalWorkerWrite, string>>
 
 export class MedicalWorkerApiError extends Error {
@@ -32,7 +35,7 @@ const request = async <T>(path: string, options: RequestInit = {}): Promise<T> =
   if (options.body) headers.set('Content-Type', 'application/json')
 
   const timeout = AbortSignal.timeout(10000)
-  const response = await fetch(`/api/medical-workers${path}`, {
+  const response = await authenticatedFetch(`/api/medical-workers${path}`, {
     ...options,
     headers,
     signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout,
@@ -44,7 +47,8 @@ const request = async <T>(path: string, options: RequestInit = {}): Promise<T> =
     if (Array.isArray(body.detail)) {
       for (const issue of body.detail) {
         const field = issue.loc?.at(-1)
-        if (field === 'first_name' || field === 'last_name' || field === 'position') {
+        if (field === 'role') fieldErrors.role = 'Выберите роль из списка.'
+        else if (field === 'first_name' || field === 'last_name' || field === 'position') {
           fieldErrors[field] = 'Введите от 3 до 24 символов.'
         }
       }

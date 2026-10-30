@@ -21,4 +21,6 @@ class AuditEventRead(BaseModel):
     event_id: UUID
     event_time: datetime
     actor: AuditActor
+    actor_label: str | None = None
     message: str
+    display_message: str | None = None

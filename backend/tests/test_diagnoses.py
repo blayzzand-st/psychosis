@@ -90,16 +90,16 @@ def test_database_length_constraints(database_engine: Engine, payload):
             session.commit()
 
 
-def test_seed_is_explicit_idempotent_and_survives_restart(database_engine: Engine):
+def test_seed_is_explicit_idempotent_and_survives_restart(database_engine: Engine, admin_cookie):
     with Session(database_engine) as session:
         assert seed_diagnoses(session) == 5
         assert seed_diagnoses(session) == 0
-    with TestClient(create_app(database_engine)) as client:
+    with TestClient(create_app(database_engine), cookies=admin_cookie) as client:
         records = client.get(API).json()
         assert [(record["code"], record["name"]) for record in records] == list(EXAMPLES)
         deleted_id = records[0]["id"]
         client.delete(f"{API}/{deleted_id}")
     database_engine.dispose()
-    with TestClient(create_app(database_engine)) as client:
+    with TestClient(create_app(database_engine), cookies=admin_cookie) as client:
         assert len(client.get(API).json()) == 4
         assert client.get(f"{API}/{deleted_id}").status_code == 404

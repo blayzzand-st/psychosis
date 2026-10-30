@@ -4,6 +4,9 @@ import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogContentText from '@mui/material/DialogContentText'
 import DialogTitle from '@mui/material/DialogTitle'
+import SvgIcon from '@mui/material/SvgIcon'
+import Tooltip from '@mui/material/Tooltip'
+import { getWorkerAccount } from '../../api/accounts'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import {
   createMedicalWorker,
@@ -18,6 +21,7 @@ import {
 import BackButton from '../../shared/ui/BackButton/BackButton'
 import DetailsCard from '../../shared/ui/DetailsCard/DetailsCard'
 import MedicalWorkerForm from './MedicalWorkerForm/MedicalWorkerForm'
+import { medicalWorkerRoles } from '../../types/medicalWorkerRole'
 import * as Styled from './MedicalWorker.styles'
 
 type PageState =
@@ -35,11 +39,25 @@ const MedicalWorker = () => {
   const [state, setState] = useState<PageState>({ status: workerId ? 'loading' : 'new' })
   const [requestVersion, setRequestVersion] = useState(0)
   const [action, setAction] = useState<'saving' | 'deleting' | 'restoring' | null>(null)
+  const [accountInfo, setAccountInfo] = useState<{ workerId: string; username: string | null; failed?: boolean } | null>(null)
   const [saved, setSaved] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [restoreError, setRestoreError] = useState('')
   const [restored, setRestored] = useState(false)
+
+  useEffect(() => {
+    if (!workerId || !/^\d+$/.test(workerId)) return
+    const controller = new AbortController()
+    getWorkerAccount(Number(workerId), controller.signal)
+      .then((account) => {
+        if (!controller.signal.aborted) setAccountInfo({ workerId, username: account?.username ?? null })
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setAccountInfo({ workerId, username: null, failed: true })
+      })
+    return () => controller.abort()
+  }, [workerId, requestVersion])
 
   useEffect(() => {
     if (!workerId) return
@@ -139,8 +157,15 @@ const MedicalWorker = () => {
 
   return (
     <Styled.Page>
-      <Styled.BackNav><BackButton fallbackTo={listPath} /></Styled.BackNav>
-      <DetailsCard title={cardTitle} action={cardAction} busy={state.status === 'loading' || action !== null}>
+      <Styled.BackNav><BackButton onBack={() => navigate(listPath)} /></Styled.BackNav>
+      <DetailsCard title={cardTitle} action={cardAction}
+        titleAction={worker && <Tooltip title="Открыть аккаунт пользователя"><Styled.AccountLink
+          to={`/administrator/medical-workers/${worker.id}/account`} aria-label="Открыть аккаунт пользователя">
+          <SvgIcon aria-hidden="true" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4m0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4" /></SvgIcon>
+        </Styled.AccountLink></Tooltip>}
+        subtitle={worker && (!accountInfo || accountInfo.workerId !== workerId ? 'Загрузка логина…' : accountInfo.failed
+          ? 'Не удалось загрузить логин' : accountInfo.username ? `Логин: ${accountInfo.username}` : 'Аккаунт не создан')}
+        busy={state.status === 'loading' || action !== null}>
         {state.status === 'loading' && <Styled.Message role="status">Загрузка медработника…</Styled.Message>}
         {state.status === 'error' && (
           <>
@@ -162,6 +187,7 @@ const MedicalWorker = () => {
                   <dt>Имя</dt><dd>{worker.first_name}</dd>
                   <dt>Фамилия</dt><dd>{worker.last_name}</dd>
                   <dt>Должность</dt><dd>{worker.position}</dd>
+                  <dt>Роль</dt><dd>{medicalWorkerRoles.find((role) => role.value === worker.role)?.label}</dd>
                 </Styled.Details>
                 {restoreError && <Styled.Feedback severity="error">{restoreError}</Styled.Feedback>}
               </>

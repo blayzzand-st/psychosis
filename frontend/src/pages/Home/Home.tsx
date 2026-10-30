@@ -9,8 +9,8 @@ const roles = [
   },
   {
     path: '/personal',
-    label: 'Врач',
-    initial: 'В',
+    label: 'Медработник',
+    initial: 'М',
     description: 'Работа с пациентами, медицинскими картами и назначениями.',
   },
 ]

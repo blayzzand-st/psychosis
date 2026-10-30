@@ -6,6 +6,8 @@ import { Link } from 'react-router'
 export const Container = styled('div')(({ theme }) =>
   theme.unstable_sx({
     marginTop: '24px',
+    display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: '0px',
+    '& > :not(ul)': { flexShrink: 0 },
   }),
 )
 
@@ -16,7 +18,7 @@ export const FilterLabel = styled(FormControlLabel)(({ theme }) =>
 export const DeletedBadge = styled('span')(({ theme }) =>
   theme.unstable_sx({
     display: 'inline-block',
-    marginTop: '6px',
+    alignSelf: 'flex-start',
     padding: '2px 8px',
     borderRadius: '6px',
     backgroundColor: alpha(theme.palette.error.main, 0.2),
@@ -103,13 +105,16 @@ export const WorkerList = styled('ul')(({ theme }) =>
     margin: '0px',
     padding: '0px',
     listStyle: 'none',
+    display: 'flex', flexDirection: 'column',
+    flex: '1 1 auto', minWidth: '0px', minHeight: '0px', overflowY: 'auto',
+    maxHeight: { xs: '60dvh', sm: 'none' }, scrollbarGutter: 'stable',
+    '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: '2px' },
   }),
 )
 
 export const WorkerRow = styled('li')(({ theme }) =>
   theme.unstable_sx({
-    marginLeft: '-12px',
-    marginRight: '-12px',
+    display: 'flex', flexShrink: 0, minWidth: '0px',
     borderBottom: '1px solid',
     borderColor: 'divider',
     '&:last-child': { borderBottom: 'none' },
@@ -118,7 +123,7 @@ export const WorkerRow = styled('li')(({ theme }) =>
 
 export const WorkerLink = styled(Link)(({ theme }) =>
   theme.unstable_sx({
-    display: 'block',
+    display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: '0px', gap: '4px',
     paddingLeft: '12px',
     paddingRight: '12px',
     paddingTop: '16px',
@@ -151,7 +156,7 @@ export const WorkerName = styled('h2')(({ theme }) =>
 
 export const WorkerPosition = styled('p')(({ theme }) =>
   theme.unstable_sx({
-    marginTop: '4px',
+    marginTop: '0px',
     marginBottom: '0px',
     color: 'text.secondary',
     fontSize: '15px',

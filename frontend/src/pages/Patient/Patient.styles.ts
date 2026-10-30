@@ -4,7 +4,7 @@ import { styled } from '@mui/material/styles'
 import { Link } from 'react-router'
 
 export const Page = styled('section')(({ theme }) => theme.unstable_sx({ paddingTop: '32px' }))
-export const BackNav = styled('nav')(({ theme }) => theme.unstable_sx({ display: 'flex', marginBottom: '24px' }))
+export const BackNav = styled('nav')(({ theme }) => theme.unstable_sx({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }))
 export const Message = styled('p')(({ theme }) =>
   theme.unstable_sx({ marginTop: '0px', marginBottom: '16px', color: 'text.secondary', lineHeight: 1.6 }),
 )

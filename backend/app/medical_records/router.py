@@ -1,18 +1,20 @@
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_session
+from app.events import EventKind, emit_event
 from app.diagnoses.models import Diagnosis
 from app.medical_records.models import MedicalRecord, MedicalRecordPrescriptionLinks, MedicalRecordRevision
 from app.medical_records.history import describe_changes
 from app.medical_records.schemas import MedicalRecordCreate, MedicalRecordHistoryEntry, MedicalRecordRead, MedicalRecordWrite
 from app.medical_workers.models import MedicalWorker
 from app.patients.models import Patient
+from app.user_auth.service import require_creator, require_doctor, encode_token, decode_token, ACCESS_SECONDS
 
 
 router = APIRouter(prefix="/api/patients/{patient_id}/medical-record", tags=["ЭМК"])
@@ -24,13 +26,6 @@ VERSION_CONFLICT = "ЭМК изменена в другой вкладке. Об
 def require_patient(session: Session, patient_id: int) -> None:
     if session.get(Patient, patient_id) is None:
         raise HTTPException(status_code=404, detail="Пациент не найден")
-
-
-def require_worker(session: Session, worker_id: int) -> MedicalWorker:
-    worker = session.get(MedicalWorker, worker_id)
-    if worker is None or worker.is_deleted:
-        raise HTTPException(status_code=422, detail="Выберите действующего медработника.")
-    return worker
 
 
 def get_record(session: Session, patient_id: int) -> MedicalRecord:
@@ -106,13 +101,15 @@ def read_medical_record_history(patient_id: PatientId, session: DatabaseSession)
 
 
 @router.post("", response_model=MedicalRecordRead, status_code=status.HTTP_201_CREATED)
-def create_medical_record(patient_id: PatientId, payload: MedicalRecordCreate, session: DatabaseSession) -> MedicalRecordRead:
+def create_medical_record(patient_id: PatientId, payload: MedicalRecordCreate, session: DatabaseSession,
+                          worker: Annotated[MedicalWorker, Depends(require_creator)]) -> MedicalRecordRead:
     require_patient(session, patient_id)
-    worker = require_worker(session, payload.worker_id)
     record = MedicalRecord(patient_id=patient_id)
     revision = new_revision(record, worker, 1, "created", [], [])
     session.add_all([record, revision])
     try:
+        session.flush()
+        emit_event(session, EventKind.RECORD_CREATED, record.id, patient_id=patient_id, version=1, worker_id=worker.id)
         session.commit()
     except IntegrityError as error:
         session.rollback()
@@ -122,13 +119,21 @@ def create_medical_record(patient_id: PatientId, payload: MedicalRecordCreate, s
 
 
 @router.put("", response_model=MedicalRecordRead)
-def save_medical_record(patient_id: PatientId, payload: MedicalRecordWrite, session: DatabaseSession) -> MedicalRecordRead:
+def save_medical_record(patient_id: PatientId, payload: MedicalRecordWrite, session: DatabaseSession,
+                        request: Request, worker: Annotated[MedicalWorker, Depends(require_doctor)]) -> MedicalRecordRead:
     record = get_record(session, patient_id)
-    worker = require_worker(session, payload.worker_id)
+    principal = request.state.medical_worker
+    grant = decode_token(session, payload.edit_token, 'edit')
+    if (grant['sub'] != principal['account_id']
+            or grant.get('sid', grant['jti']) != principal['session_family_id']
+            or grant['ver'] != principal['auth_version'] or grant.get('record_id') != record.id):
+        raise HTTPException(403, 'Разблокируйте текущую версию ЭМК своим аккаунтом')
     previous = latest_revision(session, record)
     version = previous.version if previous else 0
     if payload.version != version:
         raise HTTPException(status_code=409, detail=VERSION_CONFLICT)
+    if grant.get('record_version') != payload.version:
+        raise HTTPException(403, 'Разблокируйте текущую версию ЭМК своим аккаунтом')
 
     if payload.prescription_sources is not None:
         sources = [source for source in payload.prescription_sources if source is not None]
@@ -151,9 +156,24 @@ def save_medical_record(patient_id: PatientId, payload: MedicalRecordWrite, sess
     revision = new_revision(record, worker, version + 1, "saved", diagnoses, payload.prescriptions, previous, payload.prescription_sources)
     session.add(revision)
     try:
+        session.flush()
+        emit_event(session, EventKind.RECORD_UPDATED, record.id, patient_id=patient_id, version=version + 1, worker_id=worker.id)
         session.commit()
     except IntegrityError as error:
         session.rollback()
         raise HTTPException(status_code=409, detail=VERSION_CONFLICT) from error
     session.refresh(revision)
     return record_response(record, revision)
+
+
+@router.post('/unlock')
+def unlock_medical_record(patient_id: PatientId, session: DatabaseSession, request: Request,
+                          worker: Annotated[MedicalWorker, Depends(require_doctor)]):
+    record = get_record(session, patient_id)
+    previous = latest_revision(session, record)
+    principal = request.state.medical_worker
+    grant = encode_token(session, {'sub': principal['account_id'], 'jti': principal['session_id'],
+        'sid': principal['session_family_id'],
+        'ver': principal['auth_version'], 'record_id': record.id,
+        'record_version': previous.version if previous else 0}, 'edit', ACCESS_SECONDS)
+    return {'edit_token': grant, 'version': previous.version if previous else 0}

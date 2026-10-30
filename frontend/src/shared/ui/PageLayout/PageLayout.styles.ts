@@ -4,16 +4,23 @@ import { Link } from 'react-router'
 export const Page = styled('main')(({ theme }) =>
   theme.unstable_sx({
     maxWidth: '1040px',
+    minHeight: '100dvh',
+    display: 'flex',
+    flexDirection: 'column',
     marginLeft: 'auto',
     marginRight: 'auto',
     paddingLeft: { xs: '20px', sm: '32px' },
     paddingRight: { xs: '20px', sm: '32px' },
     paddingBottom: '64px',
+    '&[data-admin-workspace="true"]': {
+      height: { sm: '100dvh' },
+    },
   }),
 )
 
 export const Header = styled('header')(({ theme }) =>
   theme.unstable_sx({
+    flexShrink: 0,
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'space-between',

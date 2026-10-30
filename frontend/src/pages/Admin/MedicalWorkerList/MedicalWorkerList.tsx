@@ -82,7 +82,7 @@ const MedicalWorkerList = () => {
           </Styled.Message>
         ) : (
           <>
-            <Styled.WorkerList aria-label="Медработники">
+            <Styled.WorkerList aria-label="Медработники" tabIndex={0}>
               {state.workers.map((worker) => (
                 <Styled.WorkerRow key={worker.id}>
                   <Styled.WorkerLink to={`/administrator/medical-workers/${worker.id}${includeDeleted ? '?include_deleted=true' : ''}`}>

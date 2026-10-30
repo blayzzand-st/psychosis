@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getPatients, type Patient } from '../../../api/patients'
 import { administrativeSexOptions } from '../../../types/patient'
 import * as Styled from './PatientList.styles'
+import { useUserAuth } from '../../../shared/ui/UserAccess/useUserAuth'
 
 type ListState =
   | { status: 'loading' }
@@ -9,6 +10,7 @@ type ListState =
   | { status: 'error' }
 
 const PatientList = () => {
+  const { status } = useUserAuth()
   const [state, setState] = useState<ListState>({ status: 'loading' })
   const [requestVersion, setRequestVersion] = useState(0)
 
@@ -28,7 +30,7 @@ const PatientList = () => {
     <div aria-busy={state.status === 'loading'}>
       <Styled.Toolbar>
         <Styled.Count role="status">Всего: {state.status === 'loaded' ? state.patients.length : '—'}</Styled.Count>
-        <Styled.CreateLink to="/personal/patients/new">Добавить пациента</Styled.CreateLink>
+        {status?.user?.can_create && <Styled.CreateLink to="/personal/patients/new">Добавить пациента</Styled.CreateLink>}
       </Styled.Toolbar>
       {state.status === 'loading' && <Styled.Message role="status">Загрузка пациентов…</Styled.Message>}
       {state.status === 'error' && (

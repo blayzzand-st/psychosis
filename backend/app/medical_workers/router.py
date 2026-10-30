@@ -5,8 +5,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_session
+from app.events import EventKind, emit_event
 from app.medical_workers.models import MedicalWorker
 from app.medical_workers.schemas import MedicalWorkerRead, MedicalWorkerWrite
+from app.accounts.service import worker_account, lock_worker
+from app.user_auth.service import revoke_tokens
 
 
 router = APIRouter(prefix="/api/medical-workers", tags=["Медработники"])
@@ -28,6 +31,8 @@ def get_worker(session: Session, worker_id: int, include_deleted: bool = False) 
 def create_worker(payload: MedicalWorkerWrite, session: DatabaseSession) -> MedicalWorker:
     worker = MedicalWorker(**payload.model_dump())
     session.add(worker)
+    session.flush()
+    emit_event(session, EventKind.WORKER_CREATED, worker.id)
     session.commit()
     session.refresh(worker)
     return worker
@@ -59,9 +64,17 @@ def update_worker(
     payload: MedicalWorkerWrite,
     session: DatabaseSession,
 ) -> MedicalWorker:
-    worker = get_worker(session, worker_id)
-    for field, value in payload.model_dump().items():
+    worker = lock_worker(session, worker_id, require_active=False)
+    if worker.is_deleted:
+        raise HTTPException(status_code=404, detail="Медработник не найден")
+    if "role" in payload.model_fields_set and worker.role != payload.role:
+        account = worker_account(session, worker_id, required=False)
+        if account is not None:
+            revoke_tokens(session, account, 'role_changed')
+        emit_event(session, EventKind.WORKER_ROLE_CHANGED, worker_id, old_role=worker.role, new_role=payload.role)
+    for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(worker, field, value)
+    emit_event(session, EventKind.WORKER_UPDATED, worker_id)
     session.commit()
     session.refresh(worker)
     return worker
@@ -69,15 +82,25 @@ def update_worker(
 
 @router.delete("/{worker_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_worker(worker_id: WorkerId, session: DatabaseSession) -> Response:
-    worker = get_worker(session, worker_id)
+    worker = lock_worker(session, worker_id, require_active=False)
+    if worker.is_deleted:
+        raise HTTPException(status_code=404, detail="Медработник не найден")
     worker.is_deleted = True
+    emit_event(session, EventKind.WORKER_DELETED, worker_id)
+    account = worker_account(session, worker_id, required=False)
+    if account is not None and account.is_active:
+        account.is_active = False
+        revoke_tokens(session, account, 'deactivated')
+        emit_event(session, EventKind.ACCOUNT_DEACTIVATED, account.id, worker_id=worker_id)
     session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{worker_id}/restore", response_model=MedicalWorkerRead)
 def restore_worker(worker_id: WorkerId, session: DatabaseSession) -> MedicalWorker:
-    worker = get_worker(session, worker_id, include_deleted=True)
+    worker = lock_worker(session, worker_id, require_active=False)
+    if worker.is_deleted:
+        emit_event(session, EventKind.WORKER_RESTORED, worker_id)
     worker.is_deleted = False
     session.commit()
     session.refresh(worker)

@@ -22,7 +22,9 @@ class AuditEvent(Base):
     # A stable namespaced identifier, independent of mutable names and logins.
     # No cascading FK: history must survive deletion of its original actor.
     actor: Mapped[str] = mapped_column(String(128), nullable=False)
+    actor_label: Mapped[str | None] = mapped_column(String(128), nullable=True)
     message: Mapped[str] = mapped_column(Text, nullable=False)
+    display_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 @event.listens_for(AuditEvent, "before_update")

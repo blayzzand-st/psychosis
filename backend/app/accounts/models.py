@@ -25,6 +25,9 @@ class UserAccount(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true(), nullable=False)
+    auth_version: Mapped[int] = mapped_column(default=0, server_default='0')
+    failed_attempts: Mapped[int] = mapped_column(default=0, server_default='0')
+    blocked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     medical_worker_id: Mapped[int | None] = mapped_column(
         ForeignKey("medical_workers.id", ondelete="RESTRICT"), unique=True, nullable=True,
     )

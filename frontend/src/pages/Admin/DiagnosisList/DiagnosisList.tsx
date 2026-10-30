@@ -41,7 +41,7 @@ const DiagnosisList = () => {
       )}
       {state.status === 'loaded' && (
         state.diagnoses.length === 0 ? <Styled.Message role="status">Диагнозы пока не добавлены.</Styled.Message> : (
-          <Styled.List aria-label="Диагнозы">
+          <Styled.List aria-label="Диагнозы" tabIndex={0}>
             {state.diagnoses.map((diagnosis) => (
               <Styled.Row key={diagnosis.id}>
                 <Styled.RecordLink to={`/administrator/diagnoses/${diagnosis.id}`}>

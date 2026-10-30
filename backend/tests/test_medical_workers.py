@@ -21,7 +21,7 @@ def test_crud_and_soft_delete(client: TestClient, database_engine: Engine):
     created = client.post(API, json=VALID_WORKER)
     assert created.status_code == 201
     worker = created.json()
-    assert worker == {**VALID_WORKER, "id": worker["id"], "is_deleted": False}
+    assert worker == {**VALID_WORKER, "id": worker["id"], "is_deleted": False, "role": "other"}
     worker_url = f"{API}/{worker['id']}"
 
     assert client.get(API).json() == [worker]
@@ -30,7 +30,7 @@ def test_crud_and_soft_delete(client: TestClient, database_engine: Engine):
     updated_fields = {"first_name": "Анна", "last_name": "Иванова", "position": "Хирург"}
     updated = client.put(worker_url, json=updated_fields)
     assert updated.status_code == 200
-    updated_worker = {**updated_fields, "id": worker["id"], "is_deleted": False}
+    updated_worker = {**updated_fields, "id": worker["id"], "is_deleted": False, "role": "other"}
     assert updated.json() == updated_worker
 
     deleted = client.delete(worker_url)
@@ -83,7 +83,7 @@ def test_restore_unknown_worker_returns_404(client: TestClient):
 
 
 @pytest.mark.parametrize("field", FIELDS)
-@pytest.mark.parametrize("value", ["", "аб", "а" * 25, "   ", None, 123])
+@pytest.mark.parametrize("value", ["", "а" * 25, "   ", None, 123])
 def test_invalid_fields_are_rejected(client: TestClient, field: str, value):
     invalid_worker = {**VALID_WORKER, field: value}
     assert client.post(API, json=invalid_worker).status_code == 422
@@ -138,15 +138,24 @@ def test_unknown_worker_returns_404(client: TestClient, method: str):
 @pytest.mark.parametrize("field", FIELDS)
 def test_database_also_enforces_field_lengths(database_engine: Engine, field: str):
     with Session(database_engine) as session:
-        session.add(MedicalWorker(**{**VALID_WORKER, field: "аб"}))
+        session.add(MedicalWorker(**{**VALID_WORKER, field: ""}))
         with pytest.raises(IntegrityError):
             session.commit()
 
 
-def test_records_survive_application_restart(database_engine: Engine):
-    with TestClient(create_app(database_engine)) as first_client:
+def test_records_survive_application_restart(database_engine: Engine, admin_cookie):
+    with TestClient(create_app(database_engine), cookies=admin_cookie) as first_client:
         worker = first_client.post(API, json=VALID_WORKER).json()
 
     database_engine.dispose()
-    with TestClient(create_app(database_engine)) as second_client:
+    with TestClient(create_app(database_engine), cookies=admin_cookie) as second_client:
         assert second_client.get(f"{API}/{worker['id']}").json() == worker
+
+
+@pytest.mark.parametrize('length', [1, 2])
+def test_short_names_are_accepted_but_short_position_is_not(client, length):
+    payload = {**VALID_WORKER, 'first_name': 'Я' * length, 'last_name': 'Л' * length}
+    created = client.post(API, json=payload)
+    assert created.status_code == 201
+    assert client.put(f"{API}/{created.json()['id']}", json=payload).status_code == 200
+    assert client.post(API, json={**payload, 'position': 'аб'}).status_code == 422

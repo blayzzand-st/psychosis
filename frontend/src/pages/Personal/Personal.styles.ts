@@ -17,12 +17,19 @@ export const BackNavigation = styled('nav')(({ theme }) =>
 
 export const Layout = styled('div')(({ theme }) =>
   theme.unstable_sx({
-    display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '200px minmax(0, 1fr)' }, alignItems: 'start', gap: '24px',
+    display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '200px minmax(0, 1fr)' }, alignItems: 'stretch', gap: '24px',
   }),
 )
 
 export const Sidebar = styled('nav')(({ theme }) =>
   theme.unstable_sx({ display: 'flex', flexDirection: 'column', gap: '8px' }),
+)
+
+export const SideColumn = styled('div')(({ theme }) =>
+  theme.unstable_sx({
+    display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+    minWidth: '0px', gap: '32px',
+  }),
 )
 
 export const MenuLink = styled(Link)(({ theme }) =>
